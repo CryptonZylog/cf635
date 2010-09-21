@@ -126,7 +126,6 @@ namespace Crypton.Hardware.CrystalFontz {
         #endregion
 
         private SerialPort spLcd = null;
-        string comPort = "COM1";
         int baudRate = 0;
         bool exit = false;
         Thread receivingAsync = null;
