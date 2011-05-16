@@ -7,6 +7,14 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "test", "test\test.csproj", 
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "wintest", "wintest\wintest.csproj", "{D514441D-016B-493A-BF8A-D58C4F577C6E}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "InfoService", "InfoService\InfoService.csproj", "{361E3C07-1385-4DB7-83DA-F86F7C752686}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{5822E47C-8E4D-4F94-BB0B-EEAA315B5F7A}"
+	ProjectSection(SolutionItems) = preProject
+		Performance1.psess = Performance1.psess
+		Performance2.psess = Performance2.psess
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SubversionScc) = preSolution
 		Svn-Managed = True
@@ -51,6 +59,16 @@ Global
 		{D514441D-016B-493A-BF8A-D58C4F577C6E}.Release|Mixed Platforms.Build.0 = Release|x86
 		{D514441D-016B-493A-BF8A-D58C4F577C6E}.Release|x86.ActiveCfg = Release|x86
 		{D514441D-016B-493A-BF8A-D58C4F577C6E}.Release|x86.Build.0 = Release|x86
+		{361E3C07-1385-4DB7-83DA-F86F7C752686}.Debug|Any CPU.ActiveCfg = Debug|x86
+		{361E3C07-1385-4DB7-83DA-F86F7C752686}.Debug|Mixed Platforms.ActiveCfg = Debug|x86
+		{361E3C07-1385-4DB7-83DA-F86F7C752686}.Debug|Mixed Platforms.Build.0 = Debug|x86
+		{361E3C07-1385-4DB7-83DA-F86F7C752686}.Debug|x86.ActiveCfg = Debug|x86
+		{361E3C07-1385-4DB7-83DA-F86F7C752686}.Debug|x86.Build.0 = Debug|x86
+		{361E3C07-1385-4DB7-83DA-F86F7C752686}.Release|Any CPU.ActiveCfg = Release|x86
+		{361E3C07-1385-4DB7-83DA-F86F7C752686}.Release|Mixed Platforms.ActiveCfg = Release|x86
+		{361E3C07-1385-4DB7-83DA-F86F7C752686}.Release|Mixed Platforms.Build.0 = Release|x86
+		{361E3C07-1385-4DB7-83DA-F86F7C752686}.Release|x86.ActiveCfg = Release|x86
+		{361E3C07-1385-4DB7-83DA-F86F7C752686}.Release|x86.Build.0 = Release|x86
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

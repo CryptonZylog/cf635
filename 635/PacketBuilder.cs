@@ -10,6 +10,7 @@ namespace Crypton.Hardware.CrystalFontz {
     struct Packet {
         public byte Type;
         public byte[] Data;
+        public bool IsValid;
     }
 
     class PacketBuilder {
@@ -17,7 +18,7 @@ namespace Crypton.Hardware.CrystalFontz {
         const byte MAX_CMD = 35;
         const byte MAX_LENGTH = 22;
 
-        public static void SendPacket(SerialPort port, Packet packet) {
+        public static bool SendPacket(SerialPort port, Packet packet) {
             if (port == null) {
                 throw new ArgumentNullException("SerialPort is null");
             }
@@ -34,10 +35,14 @@ namespace Crypton.Hardware.CrystalFontz {
             combined[1] = (byte)packet.Data.Length;
             Array.Copy(packet.Data, 0, combined, 2, packet.Data.Length);
             ushort crc = CalculateCRC(combined, 0, combined.Length);
-            lock (port) {
+            try {
                 BinaryWriter bw = new BinaryWriter(port.BaseStream);
                 bw.Write(combined, 0, combined.Length);
                 bw.Write(crc);
+                return true;
+            }
+            catch {
+                return false;
             }
         }
 
@@ -46,19 +51,21 @@ namespace Crypton.Hardware.CrystalFontz {
                 throw new ArgumentNullException("SerialPort is null");
             }
             var packet = new Packet();
-            lock (port) {
-                byte cmd = 0;
-                byte dl = 0;
-                byte[] data = null;
-                ushort crc = 0;
+            byte cmd = 0;
+            byte dl = 0;
+            byte[] data = null;
+            ushort crc = 0;
+            try {
                 BinaryReader br = new BinaryReader(port.BaseStream);
                 cmd = br.ReadByte();
                 if ((cmd & 0x3f) > MAX_CMD) {
-                    throw new CommunicationException("Invalid data received: expected command code exceeds MAX_CMD of " + MAX_CMD, CommunicationException.ErrorCodes.GeneralError);
+                    packet.IsValid = true;
+                    return packet;
                 }
                 dl = br.ReadByte();
                 if (dl > MAX_LENGTH) {
-                    throw new CommunicationException("Invalid data received: expected data length exceeds MAX_LENGTH of " + MAX_LENGTH, CommunicationException.ErrorCodes.GeneralError);
+                    packet.IsValid = true;
+                    return packet;
                 }
                 data = br.ReadBytes(dl);
                 crc = br.ReadUInt16();
@@ -70,10 +77,17 @@ namespace Crypton.Hardware.CrystalFontz {
                 Array.Copy(data, 0, combined, 2, dl);
                 ushort my_crc = CalculateCRC(combined, 0, combined.Length);
                 if (my_crc.CompareTo(crc) != 0) {
-                    throw new CommunicationException("Bad CRC on received packet", CommunicationException.ErrorCodes.GeneralError);
+                    packet.IsValid = true;
+                    return packet;
                 }
                 packet.Type = cmd;
                 packet.Data = data;
+                packet.IsValid = true;
+            }
+            catch {
+                return new Packet() {
+                    IsValid = false
+                };
             }
             return packet;
         }

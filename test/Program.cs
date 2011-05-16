@@ -12,9 +12,7 @@ namespace test {
             Thread.CurrentThread.CurrentCulture = CultureInfo.InvariantCulture;
             Thread.CurrentThread.CurrentUICulture = CultureInfo.InvariantCulture;
             using (CrystalFontz635 cf = new CrystalFontz635(115200, "COM3")) {
-                    cf.SendData(0, 0, DateTime.Now.TimeOfDay.ToString());
-                    Thread.Sleep(500);
-                    Console.ReadKey();
+                cf.SetLED(0, 100, 0);
             }
             Console.ReadKey();
         }

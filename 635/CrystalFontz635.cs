@@ -107,7 +107,8 @@ namespace Crypton.Hardware.CrystalFontz {
             internal set;
         }
 
-        internal KeypadInfo() { }
+        internal KeypadInfo() {
+        }
     }
 
     public class ReportInfo {
@@ -155,13 +156,15 @@ namespace Crypton.Hardware.CrystalFontz {
                     }
                     try {
                         spLcd = new SerialPort(port, baudRate, Parity.None, 8, StopBits.One);
+                        spLcd.ReadBufferSize = 16 * 1024;
                         spLcd.WriteTimeout = 2500;
                         spLcd.ReadTimeout = 2500;
                         spLcd.Open();
                         Ping();
                         found = true;
                         break;
-                    } catch {
+                    }
+                    catch {
                         // nope
                     }
                 }
@@ -172,7 +175,8 @@ namespace Crypton.Hardware.CrystalFontz {
             if (!found) {
                 spLcd = null;
                 throw new CommunicationException("Could not find a responding LCD device", CommunicationException.ErrorCodes.DeviceNotFound);
-            } else {
+            }
+            else {
                 startMethods();
             }
         }
@@ -185,12 +189,14 @@ namespace Crypton.Hardware.CrystalFontz {
         public CrystalFontz635(int baudRate, string comPort) {
             try {
                 spLcd = new SerialPort(comPort, baudRate, Parity.None, 8, StopBits.One);
+                spLcd.ReadBufferSize = 16 * 1024;
                 spLcd.WriteTimeout = 2500;
                 spLcd.ReadTimeout = 2500;
                 spLcd.Open();
                 Ping();
                 startMethods();
-            } catch (Exception ex) {
+            }
+            catch (Exception ex) {
 #if(DEBUG)
                 if (Debugger.IsAttached)
                     throw ex;
@@ -198,23 +204,26 @@ namespace Crypton.Hardware.CrystalFontz {
                 throw new CommunicationException("Could not find a responding LCD device", CommunicationException.ErrorCodes.DeviceNotFound);
             }
         }
+
         #endregion
 
         // thread which receives asynchronous messages from module (like button presses)
         void receiveAsync() {
             while (!exit && spLcd != null && spLcd.IsOpen) {
-                lock (spLcd) {
-                    if (spLcd.BytesToRead > 0) {
+                if (spLcd.BytesToRead >= 1) {
+                    lock (spLcd) {
                         var packet = receive();
                         // do processing
                         switch (packet.Type) {
                             case 0x80:  // key report
+                                Debug.WriteLine("Key press: " + (KeyCodes)packet.Data[0]);
                                 if (packet.Data[0] < 7) { // key is pressed
                                     KeyCodes code = (KeyCodes)packet.Data[0];
                                     if (OnKeyDown != null) {
                                         OnKeyDown(this, code);
                                     }
-                                } else { // key is released
+                                }
+                                else { // key is released
                                     KeyCodes code = (KeyCodes)packet.Data[0];
                                     if (OnKeyUp != null) {
                                         OnKeyUp(this, code);
@@ -222,9 +231,12 @@ namespace Crypton.Hardware.CrystalFontz {
                                 }
                                 break;
                             case 0x81: {// fan report (SCAB)
-                                } break;
+                                }
+                                break;
                             case 0x82: {// temp report (SCAB)
-                                } break;
+                                }
+                                break;
+
                         }
                     }
                 }
@@ -241,6 +253,12 @@ namespace Crypton.Hardware.CrystalFontz {
         /// Fires when a key is pressed
         /// </summary>
         public event KeyDownEventHandler OnKeyDown;
+        /// <summary>
+        /// Resets OnKeyDown event to have no listeners
+        /// </summary>
+        public void ResetOnKeyDown() {
+            OnKeyDown = null;
+        }
         #endregion
 
         #region Helpers
@@ -249,14 +267,13 @@ namespace Crypton.Hardware.CrystalFontz {
             receivingAsync.Start();
         }
         private void send(Packet packet) {
-            lock (spLcd) {
-                PacketBuilder.SendPacket(spLcd, packet);
-            }
+            PacketBuilder.SendPacket(spLcd, packet);
         }
         private Packet receive() {
-            lock (spLcd) {
-                return PacketBuilder.ReceivePacket(spLcd);
-            }
+            return PacketBuilder.ReceivePacket(spLcd);
+        }
+        private bool checkReceive(byte expected, Packet received) {
+            return true;  // experimental
         }
         #endregion
 
@@ -283,7 +300,8 @@ namespace Crypton.Hardware.CrystalFontz {
                             throw new CommunicationException("Received ping data does not match what was sent", CommunicationException.ErrorCodes.GeneralError);
                     }
                     // all looks good
-                } catch (Exception ex) {
+                }
+                catch (Exception ex) {
                     throw new InvalidOperationException("Failed to execute Ping command, look for details in InnerException", ex);
                 }
             }
@@ -339,9 +357,6 @@ namespace Crypton.Hardware.CrystalFontz {
                     Type = 0x02,
                     Data = write
                 });
-                var resp = receive();
-                if (resp.Type != 0x42) // something's wrong
-                    throw new InvalidOperationException("Failed to write data to flash");
             }
         }
         /// <summary>
@@ -357,7 +372,7 @@ namespace Crypton.Hardware.CrystalFontz {
                     Data = new byte[0]
                 });
                 var resp = receive();
-                if (resp.Type != 0x43)
+                if (!checkReceive(0x43, resp))
                     throw new InvalidOperationException("Failed to read user flash data");
                 return resp.Data;
             }
@@ -373,9 +388,6 @@ namespace Crypton.Hardware.CrystalFontz {
                     Type = 0x04,
                     Data = new byte[0]
                 });
-                var resp = receive();
-                if (resp.Type != 0x44)
-                    throw new InvalidOperationException("Failed to store current state as boot state");
             }
         }
         /// <summary>
@@ -389,9 +401,6 @@ namespace Crypton.Hardware.CrystalFontz {
                     Type = 0x05,
                     Data = new byte[] { 8, 18, 99 }
                 });
-                var resp = receive();
-                if (resp.Type != 0x45)
-                    throw new InvalidOperationException("Failed to reboot LCD module");
             }
         }
         /// <summary>
@@ -406,9 +415,6 @@ namespace Crypton.Hardware.CrystalFontz {
                     Type = 0x05,
                     Data = new byte[] { 12, 28, 97 }
                 });
-                var resp = receive();
-                if (resp.Type != 0x45)
-                    throw new InvalidOperationException("Failed to reset host computer");
             }
         }
         /// <summary>
@@ -423,9 +429,6 @@ namespace Crypton.Hardware.CrystalFontz {
                     Type = 0x05,
                     Data = new byte[] { 3, 11, 95 }
                 });
-                var resp = receive();
-                if (resp.Type != 0x45)
-                    throw new InvalidOperationException("Failed to power off host computer");
             }
         }
         /// <summary>
@@ -438,9 +441,6 @@ namespace Crypton.Hardware.CrystalFontz {
                 send(new Packet() {
                     Type = 0x06
                 });
-                var resp = receive();
-                if (resp.Type != 0x46)
-                    throw new InvalidOperationException("Failed to clear screen");
             }
         }
         /// <summary>
@@ -466,9 +466,6 @@ namespace Crypton.Hardware.CrystalFontz {
                     Type = 0x09,
                     Data = output
                 });
-                var resp = receive();
-                if (resp.Type != 0x49)
-                    throw new InvalidOperationException("Failed to set CGRAM character");
             }
         }
         /// <summary>
@@ -487,7 +484,7 @@ namespace Crypton.Hardware.CrystalFontz {
                     Data = new byte[] { address }
                 });
                 var resp = receive();
-                if (resp.Type != 0x4a)
+                if (!checkReceive(0x4a, resp))
                     throw new InvalidOperationException("Failed to read LCD memory");
                 byte[] data = new byte[8];
                 Array.Copy(resp.Data, 1, data, 0, resp.Data.Length - 1);
@@ -511,9 +508,6 @@ namespace Crypton.Hardware.CrystalFontz {
                     Type = 0x0b,
                     Data = new byte[] { (byte)column, (byte)row }
                 });
-                var resp = receive();
-                if (resp.Type != 0x4b)
-                    throw new InvalidOperationException("Failed to set cursor position");
             }
         }
         /// <summary>
@@ -528,10 +522,6 @@ namespace Crypton.Hardware.CrystalFontz {
                     Type = 0x0c,
                     Data = new byte[] { (byte)style }
                 });
-                var resp = receive();
-                if (resp.Type != 0x4c) {
-                    throw new InvalidOperationException("Failed to set cursor style");
-                }
             }
         }
         /// <summary>
@@ -548,10 +538,6 @@ namespace Crypton.Hardware.CrystalFontz {
                     Type = 0x0d,
                     Data = new byte[] { (byte)value }
                 });
-                var resp = receive();
-                if (resp.Type != 0x4d) {
-                    throw new InvalidOperationException("Failed to set contrast");
-                }
             }
         }
         /// <summary>
@@ -568,10 +554,6 @@ namespace Crypton.Hardware.CrystalFontz {
                     Type = 0x0e,
                     Data = new byte[] { (byte)value }
                 });
-                var resp = receive();
-                if (resp.Type != 0x4e) {
-                    throw new InvalidOperationException("Failed to set backlight");
-                }
             }
         }
         public void SetupFanReporting(bool fan1, bool fan2, bool fan3, bool fan4) {
@@ -596,7 +578,7 @@ namespace Crypton.Hardware.CrystalFontz {
                     Data = new byte[] { dowAddress }
                 });
                 var resp = receive();
-                if (resp.Type != 0x52) {
+                if (!checkReceive(0x52, resp)) {
                     throw new InvalidOperationException("Failed to set backlight");
                 }
                 byte[] data = new byte[8];
@@ -607,7 +589,9 @@ namespace Crypton.Hardware.CrystalFontz {
         public void SetupTemperatureReporting(bool[] devices) {
             throw new NotImplementedException("SCAB functions are not implemented yet");
         }
-        public void DOWTransaction() { throw new NotImplementedException("DOW functions are not implemented yet"); }
+        public void DOWTransaction() {
+            throw new NotImplementedException("DOW functions are not implemented yet");
+        }
         /// <summary>
         /// Sends data to the S6A0073 LCD controller
         /// </summary>
@@ -623,10 +607,6 @@ namespace Crypton.Hardware.CrystalFontz {
                     Type = 0x16,
                     Data = new byte[] { locationCode, data }
                 });
-                var resp = receive();
-                if (resp.Type != 0x56) {
-                    throw new InvalidOperationException("Failed to send controller data");
-                }
             }
         }
         /// <summary>
@@ -642,10 +622,6 @@ namespace Crypton.Hardware.CrystalFontz {
                     Type = 0x17,
                     Data = new byte[] { (byte)pressMask, (byte)releaseMask }
                 });
-                var resp = receive();
-                if (resp.Type != 0x57) {
-                    throw new InvalidOperationException("Failed to configure key reporting");
-                }
             }
         }
         /// <summary>
@@ -661,7 +637,7 @@ namespace Crypton.Hardware.CrystalFontz {
                     Type = 0x18
                 });
                 var resp = receive();
-                if (resp.Type != 0x58)
+                if (!checkReceive(0x58, resp))
                     throw new InvalidOperationException("Failed to read keypad info");
                 ki.PressedKeys = (KeyCodes)resp.Data[0];
                 ki.PressedLastPoll = (KeyCodes)resp.Data[1];
@@ -711,29 +687,190 @@ namespace Crypton.Hardware.CrystalFontz {
                 text = string.Empty;
             if (text.Length > 20)
                 throw new ArgumentOutOfRangeException("String is longer than 20 characters");
+            byte[] output = null;
+            using (MemoryStream ms = new MemoryStream()) {
+                ms.WriteByte((byte)column);
+                ms.WriteByte((byte)row);
+                byte[] bt = Encoding.ASCII.GetBytes(text);
+                ms.Write(bt, 0, bt.Length);
+                output = ms.ToArray();
+            }
             lock (spLcd) {
-                byte[] output = null;
-                using (MemoryStream ms = new MemoryStream()) {
-                    ms.WriteByte((byte)column);
-                    ms.WriteByte((byte)row);
-                    byte[] bt = Encoding.ASCII.GetBytes(text);
-                    ms.Write(bt, 0, bt.Length);
-                    output = ms.ToArray();
-                }
                 send(new Packet() {
                     Type = 0x1f,
                     Data = output
                 });
                 var resp = receive();
                 if (resp.Type != 0x5f)
-                    throw new InvalidOperationException("Failed to send text to LCD");
+                    throw new ArgumentException();
             }
         }
-        public void SetBaudRate() {
-            //TODO: implement!
+        /// <summary>
+        /// Sends arbitrary string data to LCD
+        /// </summary>
+        /// <param name="row">Row, 0-3</param>
+        /// <param name="column">Column, 0-19</param>
+        /// <param name="text">Text, max 20 characters</param>
+        public void SendString(int row, int column, string text) {
+            if (spLcd == null)
+                throw new InvalidOperationException("Not connected to an LCD module");
+            if (row < MIN_ROW || row > MAX_ROW)
+                throw new ArgumentOutOfRangeException("The row must be between 0 and 3");
+            if (column < MIN_COL || column > MAX_COL)
+                throw new ArgumentOutOfRangeException("The column must be between 0 and 19");
+            if (string.IsNullOrEmpty(text))
+                text = string.Empty;
+            if (text.Length > 20)
+                text = text.Substring(0, 20);
+            for (int col = column, ch = 0; col <= MAX_COL && ch < text.Length; col++, ch++) {
+                SendCharacter(row, col, text[ch]);
+            }
         }
-        public void ConfigureGPIO() {
-            //TODO: implement!
+        /// <summary>
+        /// Sends arbitrary character to the LCD
+        /// </summary>
+        /// <param name="row">Row, 0-3</param>
+        /// <param name="column">Column, 0-19</param>
+        /// <param name="value">Character code</param>
+        public void SendCharacter(int row, int column, char value) {
+            if (spLcd == null)
+                throw new InvalidOperationException("Not connected to an LCD module");
+            if (row < MIN_ROW || row > MAX_ROW)
+                throw new ArgumentOutOfRangeException("The row must be between 0 and 3");
+            if (column < MIN_COL || column > MAX_COL)
+                throw new ArgumentOutOfRangeException("The column must be between 0 and 19");
+            byte[] output = null;
+            using (MemoryStream ms = new MemoryStream()) {
+                ms.WriteByte((byte)column);
+                ms.WriteByte((byte)row);
+                ms.WriteByte((byte)value);
+                output = ms.ToArray();
+            }
+            send(new Packet() {
+                Type = 0x1f,
+                Data = output
+            });
+        }
+        public enum SupportedBaudRates : int {
+            Rate19200 = 19200,
+            Rate115200 = 115200
+        }
+        public void SetBaudRate(SupportedBaudRates rate) {
+            bool successRequest = false;
+            byte rateNum = 1;
+            switch (rate) {
+                case SupportedBaudRates.Rate115200:
+                    rateNum = 1;
+                    break;
+                case SupportedBaudRates.Rate19200:
+                    rateNum = 0;
+                    break;
+            }
+            lock (spLcd) {
+                send(new Packet() {
+                    Type = 0x21,
+                    Data = new byte[] {  rateNum }
+                });
+                var resp = receive();
+                if (resp.Type == 0x61) {
+                    successRequest = true;
+                }
+                else {
+                    successRequest = false;
+                }
+            }
+            if (successRequest) {
+                string comport = spLcd.PortName;
+
+                Dispose();
+                exit = false;
+                spLcd = new SerialPort(comport, (int)rate);
+                Ping();
+                startMethods();
+            }
+            else {
+                throw new InvalidOperationException("Failed to switch to new baud rate");
+            }
+        }
+        /// <summary>
+        /// Sets GPIO pin at index to a set state. See datasheet (Command 0x22 for more details)
+        /// </summary>
+        /// <param name="gpioIndex">Index of GPIO pin</param>
+        /// <param name="state">State of the pin</param>
+        public void ConfigureGPIO(byte gpioIndex, byte state, byte function) {
+            lock (spLcd) {
+                byte[] output = new byte[3];
+                output[0] = gpioIndex;
+                output[1] = state;
+                output[2] = function;
+
+                send(new Packet() {
+                    Type = 0x22,
+                    Data = output
+                });
+            }
+        }
+        /// <summary>
+        /// Sets GPIO pin at index to a set state. See datasheet (Command 0x22 for more details)
+        /// </summary>
+        /// <param name="gpioIndex">Index of GPIO pin</param>
+        /// <param name="state">State of the pin</param>
+        public void ConfigureGPIO(byte gpioIndex, byte state) {
+            lock (spLcd) {
+                byte[] output = new byte[2];
+                output[0] = gpioIndex;
+                output[1] = state;
+
+                send(new Packet() {
+                    Type = 0x22,
+                    Data = output
+                });
+            }
+        }
+        /// <summary>
+        /// Sets the bi-colour LEDs
+        /// </summary>
+        /// <param name="index">LED index, 0-3 (where 0 is top LED)</param>
+        /// <param name="green">Green intensity (0 off,- 100 on)</param>
+        /// <param name="red">Red intensity (0 off,- 100 on)</param>
+        public void SetLED(int index, int green, int red) {
+            if (index < 0 || index > 3)
+                throw new IndexOutOfRangeException("LED index must be between 0 and 3 (where 0 is the top LED)");
+            if (green < 0 || green > 100)
+                throw new ArgumentOutOfRangeException("Green intensity must be between 0 (off) and 100 (on)");
+            if (red < 0 || red > 100)
+                throw new ArgumentOutOfRangeException("Red intensity must be between 0 (off) and 100 (on)");
+            switch (index) {
+                case 0:
+                    ConfigureGPIO(11, (byte)green);
+                    ConfigureGPIO(12, (byte)red);
+                    break;
+                case 1:
+                    ConfigureGPIO(9, (byte)green);
+                    ConfigureGPIO(10, (byte)red);
+                    break;
+                case 2:
+                    ConfigureGPIO(7, (byte)green);
+                    ConfigureGPIO(8, (byte)red);
+                    break;
+                case 3:
+                    ConfigureGPIO(5, (byte)green);
+                    ConfigureGPIO(6, (byte)red);
+                    break;
+            }
+        }
+        /// <summary>
+        /// Resets the LCD module: turn off all LEDs, set normal contrast, full backlight, clear all text
+        /// </summary>
+        public void Reset() {
+            SetContrast(125);
+            ClearScreen();
+            SetBacklight(100);
+            SetCursorPosition(0, 0);
+            SetCursorStyle(CursorStyles.BlinkingBlock);
+            for (byte index = 1; index <= 3; index++) {
+                SetLED(index, 0, 0);
+            }
         }
         public void ReadGPIO() {
             //TODO: implement!
