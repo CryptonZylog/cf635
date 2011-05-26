@@ -42,19 +42,18 @@ namespace InfoService.Modules {
             time.Start();
         }
 
-        public override void Draw(Stopwatch elapsed) {
-            if (elapsed.ElapsedMilliseconds >= 100) {
+        public override bool Draw(TimeSpan elapsed) {
 
-                float availMBytes = pfRAM.NextValue();
-                float usedMBytes = (TotalInstalled / 1024 / 1024) - availMBytes;
-                float percentFree = (availMBytes / (TotalInstalled / 1024 / 1024)) * 100.0f;
-                float percentUsed = (usedMBytes / (TotalInstalled / 1024 / 1024)) * 100.0f;
-                /*RAM USAGE (T:{0}Mb)
-                 *U:1234Mb F:5678Mb
-                 *%USED %FREE
-                 *------->USED
-                 */
-
+            float availMBytes = pfRAM.NextValue();
+            float usedMBytes = (TotalInstalled / 1024 / 1024) - availMBytes;
+            float percentFree = (availMBytes / (TotalInstalled / 1024 / 1024)) * 100.0f;
+            float percentUsed = (usedMBytes / (TotalInstalled / 1024 / 1024)) * 100.0f;
+            /*RAM USAGE (T:{0}Mb)
+             *U:1234Mb F:5678Mb
+             *%USED %FREE
+             *------->USED
+             */
+            if (elapsed.TotalMilliseconds >= 300) {
                 int barCount = (int)(percentUsed / 5.0f);
                 double halfBar = (int)(percentUsed % 5.0f);
                 int halfBarlen = (int)(halfBar / 0.6);
@@ -88,16 +87,13 @@ namespace InfoService.Modules {
                 bars = bars.PadRight(20);
                 LcdModule.SendString(3, 0, bars);
 
-                elapsed.Reset();
-                elapsed.Start();
+                return true;
             }
+
+            return false;
         }
 
 
-        public override void Switch(TimeSpan elapsed) {
-            time.Stop();
-            pfRAM.Dispose();
-        }
 
     }
 }

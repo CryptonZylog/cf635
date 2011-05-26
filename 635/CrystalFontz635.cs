@@ -126,10 +126,11 @@ namespace Crypton.Hardware.CrystalFontz {
         const int MAX_COL = 19;
         #endregion
 
-        private SerialPort spLcd = null;
+        internal SerialPort spLcd = null;
         int baudRate = 0;
         bool exit = false;
         Thread receivingAsync = null;
+        Dispatcher disp = null;
 
         #region Constructors
         /// <summary>
@@ -160,7 +161,6 @@ namespace Crypton.Hardware.CrystalFontz {
                         spLcd.WriteTimeout = 2500;
                         spLcd.ReadTimeout = 2500;
                         spLcd.Open();
-                        Ping();
                         found = true;
                         break;
                     }
@@ -193,7 +193,6 @@ namespace Crypton.Hardware.CrystalFontz {
                 spLcd.WriteTimeout = 2500;
                 spLcd.ReadTimeout = 2500;
                 spLcd.Open();
-                Ping();
                 startMethods();
             }
             catch (Exception ex) {
@@ -210,37 +209,23 @@ namespace Crypton.Hardware.CrystalFontz {
         // thread which receives asynchronous messages from module (like button presses)
         void receiveAsync() {
             while (!exit && spLcd != null && spLcd.IsOpen) {
-                if (spLcd.BytesToRead >= 1) {
-                    lock (spLcd) {
-                        var packet = receive();
-                        // do processing
-                        switch (packet.Type) {
-                            case 0x80:  // key report
-                                Debug.WriteLine("Key press: " + (KeyCodes)packet.Data[0]);
-                                if (packet.Data[0] < 7) { // key is pressed
-                                    KeyCodes code = (KeyCodes)packet.Data[0];
-                                    if (OnKeyDown != null) {
-                                        OnKeyDown(this, code);
-                                    }
-                                }
-                                else { // key is released
-                                    KeyCodes code = (KeyCodes)packet.Data[0];
-                                    if (OnKeyUp != null) {
-                                        OnKeyUp(this, code);
-                                    }
-                                }
-                                break;
-                            case 0x81: {// fan report (SCAB)
-                                }
-                                break;
-                            case 0x82: {// temp report (SCAB)
-                                }
-                                break;
-
+                var packet = default(Packet);
+                bool ok = disp.WaitForReturn(0x80, out packet);
+                if (ok && packet.IsValid) {
+                    Debug.WriteLine("Key press: " + (KeyCodes)packet.Data[0]);
+                    if (packet.Data[0] < 7) { // key is pressed
+                        KeyCodes code = (KeyCodes)packet.Data[0];
+                        if (OnKeyDown != null) {
+                            OnKeyDown(this, code);
+                        }
+                    }
+                    else { // key is released
+                        KeyCodes code = (KeyCodes)packet.Data[0];
+                        if (OnKeyUp != null) {
+                            OnKeyUp(this, code);
                         }
                     }
                 }
-                Thread.Sleep(1);
             }
         }
 
@@ -263,14 +248,9 @@ namespace Crypton.Hardware.CrystalFontz {
 
         #region Helpers
         private void startMethods() {
+            disp = new Dispatcher(this);
             receivingAsync = new Thread(receiveAsync);
             receivingAsync.Start();
-        }
-        private void send(Packet packet) {
-            PacketBuilder.SendPacket(spLcd, packet);
-        }
-        private Packet receive() {
-            return PacketBuilder.ReceivePacket(spLcd);
         }
         private bool checkReceive(byte expected, Packet received) {
             return true;  // experimental
@@ -285,25 +265,22 @@ namespace Crypton.Hardware.CrystalFontz {
         public void Ping() {
             if (spLcd == null)
                 throw new InvalidOperationException("Not connected to an LCD module");
-            lock (spLcd) {
-                byte[] someData = new byte[] { 0xab, 0xac, 0xad, 0x01 };
-                try {
-                    PacketBuilder.SendPacket(spLcd, new Packet() {
-                        Type = 0x0,
-                        Data = someData
-                    });
-                    var receive = PacketBuilder.ReceivePacket(spLcd);
-                    if (receive.Data.Length != someData.Length)
+            byte[] someData = new byte[] { 0xab, 0xac, 0xad, 0x01 };
+            try {
+                var receive = disp.Transaction(new Packet() {
+                    Type = 0x0,
+                    Data = someData
+                }, 0x40);
+                if (receive.Data.Length != someData.Length)
+                    throw new CommunicationException("Received ping data does not match what was sent", CommunicationException.ErrorCodes.GeneralError);
+                for (int i = 0; i < someData.Length; i++) {
+                    if (someData[i] != receive.Data[i])
                         throw new CommunicationException("Received ping data does not match what was sent", CommunicationException.ErrorCodes.GeneralError);
-                    for (int i = 0; i < someData.Length; i++) {
-                        if (someData[i] != receive.Data[i])
-                            throw new CommunicationException("Received ping data does not match what was sent", CommunicationException.ErrorCodes.GeneralError);
-                    }
-                    // all looks good
                 }
-                catch (Exception ex) {
-                    throw new InvalidOperationException("Failed to execute Ping command, look for details in InnerException", ex);
-                }
+                // all looks good
+            }
+            catch (Exception ex) {
+                throw new InvalidOperationException("Failed to execute Ping command, look for details in InnerException", ex);
             }
         }
         /// <summary>
@@ -315,12 +292,11 @@ namespace Crypton.Hardware.CrystalFontz {
             if (spLcd == null)
                 throw new InvalidOperationException("Not connected to an LCD module");
             string versInfo = string.Empty;
-            lock (spLcd) {
-                send(new Packet() {
+            lock (this) {
+                var resp = disp.Transaction(new Packet() {
                     Type = 0x01,
                     Data = new byte[0]
                 });
-                var resp = receive();
                 versInfo = Encoding.ASCII.GetString(resp.Data);
             }
             Version vHardware = default(Version), vFirmware = default(Version);
@@ -352,12 +328,10 @@ namespace Crypton.Hardware.CrystalFontz {
             if (data != null) {
                 Array.Copy(data, 0, write, 0, data.Length);
             }
-            lock (spLcd) {
-                send(new Packet() {
-                    Type = 0x02,
-                    Data = write
-                });
-            }
+            disp.Transaction(new Packet() {
+                Type = 0x02,
+                Data = write
+            });
         }
         /// <summary>
         /// This will read user flash data and return it as a 16 byte array
@@ -366,16 +340,11 @@ namespace Crypton.Hardware.CrystalFontz {
         public byte[] ReadUserFlash() {
             if (spLcd == null)
                 throw new InvalidOperationException("Not connected to an LCD module");
-            lock (spLcd) {
-                send(new Packet() {
-                    Type = 0x03,
-                    Data = new byte[0]
-                });
-                var resp = receive();
-                if (!checkReceive(0x43, resp))
-                    throw new InvalidOperationException("Failed to read user flash data");
-                return resp.Data;
-            }
+            var resp = disp.Transaction(new Packet() {
+                Type = 0x03,
+                Data = new byte[0]
+            });
+            return resp.Data;
         }
         /// <summary>
         /// Stores current state of LCD as the boot state
@@ -383,12 +352,10 @@ namespace Crypton.Hardware.CrystalFontz {
         public void StoreBoot() {
             if (spLcd == null)
                 throw new InvalidOperationException("Not connected to an LCD module");
-            lock (spLcd) {
-                send(new Packet() {
-                    Type = 0x04,
-                    Data = new byte[0]
-                });
-            }
+            var resp = disp.Transaction(new Packet() {
+                Type = 0x04,
+                Data = new byte[0]
+            });
         }
         /// <summary>
         /// Reboots the LCD module
@@ -396,12 +363,10 @@ namespace Crypton.Hardware.CrystalFontz {
         public void RebootModule() {
             if (spLcd == null)
                 throw new InvalidOperationException("Not connected to an LCD module");
-            lock (spLcd) {
-                send(new Packet() {
-                    Type = 0x05,
-                    Data = new byte[] { 8, 18, 99 }
-                });
-            }
+            disp.Transaction(new Packet() {
+                Type = 0x05,
+                Data = new byte[] { 8, 18, 99 }
+            });
         }
         /// <summary>
         /// <para>Resets the host (computer currently running)</para>
@@ -410,12 +375,10 @@ namespace Crypton.Hardware.CrystalFontz {
         public void ResetHost() {
             if (spLcd == null)
                 throw new InvalidOperationException("Not connected to an LCD module");
-            lock (spLcd) {
-                send(new Packet() {
-                    Type = 0x05,
-                    Data = new byte[] { 12, 28, 97 }
-                });
-            }
+            disp.Transaction(new Packet() {
+                Type = 0x05,
+                Data = new byte[] { 12, 28, 97 }
+            });
         }
         /// <summary>
         /// <para>Turns the host power off</para>
@@ -424,12 +387,10 @@ namespace Crypton.Hardware.CrystalFontz {
         public void PowerOffHost() {
             if (spLcd == null)
                 throw new InvalidOperationException("Not connected to an LCD module");
-            lock (spLcd) {
-                send(new Packet() {
-                    Type = 0x05,
-                    Data = new byte[] { 3, 11, 95 }
-                });
-            }
+            disp.Transaction(new Packet() {
+                Type = 0x05,
+                Data = new byte[] { 3, 11, 95 }
+            });
         }
         /// <summary>
         /// Clears the contents of DDRAM and moves cursor to top-left position
@@ -437,11 +398,9 @@ namespace Crypton.Hardware.CrystalFontz {
         public void ClearScreen() {
             if (spLcd == null)
                 throw new InvalidOperationException("Not connected to an LCD module");
-            lock (spLcd) {
-                send(new Packet() {
-                    Type = 0x06
-                });
-            }
+            disp.Transaction(new Packet() {
+                Type = 0x06
+            });
         }
         /// <summary>
         /// <para>Sets the CGRAM character bitmap at specified index (0-7)</para>
@@ -457,16 +416,14 @@ namespace Crypton.Hardware.CrystalFontz {
             if (bitmap.Length > 8) {
                 throw new ArgumentOutOfRangeException("The bitmap size must be less than or equal to 8 bytes");
             }
-            lock (spLcd) {
-                byte[] output = new byte[9];
-                output[0] = (byte)index;
-                if (bitmap != null)
-                    Array.Copy(bitmap, 0, output, 1, bitmap.Length);
-                send(new Packet() {
-                    Type = 0x09,
-                    Data = output
-                });
-            }
+            byte[] output = new byte[9];
+            output[0] = (byte)index;
+            if (bitmap != null)
+                Array.Copy(bitmap, 0, output, 1, bitmap.Length);
+            disp.Transaction(new Packet() {
+                Type = 0x09,
+                Data = output
+            });
         }
         /// <summary>
         /// Reads LCD CGRAM or DDRAM memory, depending on the address
@@ -478,18 +435,13 @@ namespace Crypton.Hardware.CrystalFontz {
                 throw new InvalidOperationException("Not connected to an LCD module");
             if (address < 0x40 || address > 0xf3)
                 throw new ArgumentOutOfRangeException("The address must fall between the ranges of CGRAM-DDRAM memory");
-            lock (spLcd) {
-                send(new Packet() {
-                    Type = 0x0a,
-                    Data = new byte[] { address }
-                });
-                var resp = receive();
-                if (!checkReceive(0x4a, resp))
-                    throw new InvalidOperationException("Failed to read LCD memory");
-                byte[] data = new byte[8];
-                Array.Copy(resp.Data, 1, data, 0, resp.Data.Length - 1);
-                return data;
-            }
+            var resp = disp.Transaction(new Packet() {
+                Type = 0x0a,
+                Data = new byte[] { address }
+            });
+            byte[] data = new byte[8];
+            Array.Copy(resp.Data, 1, data, 0, resp.Data.Length - 1);
+            return data;
         }
         /// <summary>
         /// Sets cursor position
@@ -503,12 +455,11 @@ namespace Crypton.Hardware.CrystalFontz {
                 throw new ArgumentOutOfRangeException("The row must be between 0 and 3");
             if (column < MIN_COL || column > MAX_COL)
                 throw new ArgumentOutOfRangeException("The column must be between 0 and 19");
-            lock (spLcd) {
-                send(new Packet() {
-                    Type = 0x0b,
-                    Data = new byte[] { (byte)column, (byte)row }
-                });
-            }
+
+            disp.Transaction(new Packet() {
+                Type = 0x0b,
+                Data = new byte[] { (byte)column, (byte)row }
+            });
         }
         /// <summary>
         /// Sets cursor style
@@ -517,12 +468,12 @@ namespace Crypton.Hardware.CrystalFontz {
         public void SetCursorStyle(CursorStyles style) {
             if (spLcd == null)
                 throw new InvalidOperationException("Not connected to an LCD module");
-            lock (spLcd) {
-                send(new Packet() {
-                    Type = 0x0c,
-                    Data = new byte[] { (byte)style }
-                });
-            }
+
+            disp.Transaction(new Packet() {
+                Type = 0x0c,
+                Data = new byte[] { (byte)style }
+            });
+
         }
         /// <summary>
         /// Sets display contrast
@@ -533,12 +484,12 @@ namespace Crypton.Hardware.CrystalFontz {
                 throw new InvalidOperationException("Not connected to an LCD module");
             if (value < 0 || value > 254)
                 throw new ArgumentOutOfRangeException("The value must be between 0 and 254");
-            lock (spLcd) {
-                send(new Packet() {
-                    Type = 0x0d,
-                    Data = new byte[] { (byte)value }
-                });
-            }
+
+            disp.Transaction(new Packet() {
+                Type = 0x0d,
+                Data = new byte[] { (byte)value }
+            });
+
         }
         /// <summary>
         /// Sets backlight amount
@@ -549,12 +500,12 @@ namespace Crypton.Hardware.CrystalFontz {
                 throw new InvalidOperationException("Not connected to an LCD module");
             if (value < 0 || value > 100)
                 throw new ArgumentOutOfRangeException("The value must be between 0 and 100");
-            lock (spLcd) {
-                send(new Packet() {
-                    Type = 0x0e,
-                    Data = new byte[] { (byte)value }
-                });
-            }
+
+            disp.Transaction(new Packet() {
+                Type = 0x0e,
+                Data = new byte[] { (byte)value }
+            });
+
         }
         public void SetupFanReporting(bool fan1, bool fan2, bool fan3, bool fan4) {
             throw new NotImplementedException("SCAB functions are not implemented yet");
@@ -572,19 +523,15 @@ namespace Crypton.Hardware.CrystalFontz {
                 throw new InvalidOperationException("Not connected to an LCD module");
             if (dowAddress < 0 || dowAddress > 31)
                 throw new ArgumentOutOfRangeException("The address must be between 0 and 31");
-            lock (spLcd) {
-                send(new Packet() {
-                    Type = 0x12,
-                    Data = new byte[] { dowAddress }
-                });
-                var resp = receive();
-                if (!checkReceive(0x52, resp)) {
-                    throw new InvalidOperationException("Failed to set backlight");
-                }
-                byte[] data = new byte[8];
-                Array.Copy(resp.Data, 1, data, 0, resp.Data.Length - 1);
-                return data;
-            }
+
+            var resp = disp.Transaction(new Packet() {
+                Type = 0x12,
+                Data = new byte[] { dowAddress }
+            });
+            byte[] data = new byte[8];
+            Array.Copy(resp.Data, 1, data, 0, resp.Data.Length - 1);
+            return data;
+
         }
         public void SetupTemperatureReporting(bool[] devices) {
             throw new NotImplementedException("SCAB functions are not implemented yet");
@@ -602,12 +549,10 @@ namespace Crypton.Hardware.CrystalFontz {
                 throw new InvalidOperationException("Not connected to an LCD module");
             if (locationCode < 0 || locationCode > 2)
                 throw new ArgumentOutOfRangeException("The locationCode must be between 0 and 2");
-            lock (spLcd) {
-                send(new Packet() {
-                    Type = 0x16,
-                    Data = new byte[] { locationCode, data }
-                });
-            }
+            disp.Transaction(new Packet() {
+                Type = 0x16,
+                Data = new byte[] { locationCode, data }
+            });
         }
         /// <summary>
         /// Configures key reporting, see datasheet for details
@@ -617,12 +562,10 @@ namespace Crypton.Hardware.CrystalFontz {
         public void ConfigureKeyReporting(KeyCodes pressMask, KeyCodes releaseMask) {
             if (spLcd == null)
                 throw new InvalidOperationException("Not connected to an LCD module");
-            lock (spLcd) {
-                send(new Packet() {
-                    Type = 0x17,
-                    Data = new byte[] { (byte)pressMask, (byte)releaseMask }
-                });
-            }
+            disp.Transaction(new Packet() {
+                Type = 0x17,
+                Data = new byte[] { (byte)pressMask, (byte)releaseMask }
+            });
         }
         /// <summary>
         /// Reads the keypad information, in polled mode and returns information about the current state of the keypad
@@ -632,17 +575,12 @@ namespace Crypton.Hardware.CrystalFontz {
             if (spLcd == null)
                 throw new InvalidOperationException("Not connected to an LCD module");
             KeypadInfo ki = new KeypadInfo();
-            lock (spLcd) {
-                send(new Packet() {
-                    Type = 0x18
-                });
-                var resp = receive();
-                if (!checkReceive(0x58, resp))
-                    throw new InvalidOperationException("Failed to read keypad info");
-                ki.PressedKeys = (KeyCodes)resp.Data[0];
-                ki.PressedLastPoll = (KeyCodes)resp.Data[1];
-                ki.ReleasedLastPoll = (KeyCodes)resp.Data[2];
-            }
+            var resp = disp.Transaction(new Packet() {
+                Type = 0x18
+            });
+            ki.PressedKeys = (KeyCodes)resp.Data[0];
+            ki.PressedLastPoll = (KeyCodes)resp.Data[1];
+            ki.ReleasedLastPoll = (KeyCodes)resp.Data[2];
             return ki;
         }
         public void SetFanPowerFailSafe(bool fan1, bool fan2, bool fan3, bool fan4, int ticks) {
@@ -695,15 +633,10 @@ namespace Crypton.Hardware.CrystalFontz {
                 ms.Write(bt, 0, bt.Length);
                 output = ms.ToArray();
             }
-            lock (spLcd) {
-                send(new Packet() {
-                    Type = 0x1f,
-                    Data = output
-                });
-                var resp = receive();
-                if (resp.Type != 0x5f)
-                    throw new ArgumentException();
-            }
+            disp.Transaction(new Packet() {
+                Type = 0x1f,
+                Data = output
+            });
         }
         /// <summary>
         /// Sends arbitrary string data to LCD
@@ -746,10 +679,10 @@ namespace Crypton.Hardware.CrystalFontz {
                 ms.WriteByte((byte)value);
                 output = ms.ToArray();
             }
-            send(new Packet() {
+            disp.Transaction(new Packet() {
                 Type = 0x1f,
                 Data = output
-            });
+            }, 0x5f);
         }
         public enum SupportedBaudRates : int {
             Rate19200 = 19200,
@@ -766,19 +699,17 @@ namespace Crypton.Hardware.CrystalFontz {
                     rateNum = 0;
                     break;
             }
-            lock (spLcd) {
-                send(new Packet() {
-                    Type = 0x21,
-                    Data = new byte[] {  rateNum }
-                });
-                var resp = receive();
-                if (resp.Type == 0x61) {
-                    successRequest = true;
-                }
-                else {
-                    successRequest = false;
-                }
+            var resp = disp.Transaction(new Packet() {
+                Type = 0x21,
+                Data = new byte[] { rateNum }
+            });
+            if (resp.Type == 0x61) {
+                successRequest = true;
             }
+            else {
+                successRequest = false;
+            }
+
             if (successRequest) {
                 string comport = spLcd.PortName;
 
@@ -798,13 +729,13 @@ namespace Crypton.Hardware.CrystalFontz {
         /// <param name="gpioIndex">Index of GPIO pin</param>
         /// <param name="state">State of the pin</param>
         public void ConfigureGPIO(byte gpioIndex, byte state, byte function) {
-            lock (spLcd) {
+            lock (this) {
                 byte[] output = new byte[3];
                 output[0] = gpioIndex;
                 output[1] = state;
                 output[2] = function;
 
-                send(new Packet() {
+                disp.Transaction(new Packet() {
                     Type = 0x22,
                     Data = output
                 });
@@ -816,12 +747,12 @@ namespace Crypton.Hardware.CrystalFontz {
         /// <param name="gpioIndex">Index of GPIO pin</param>
         /// <param name="state">State of the pin</param>
         public void ConfigureGPIO(byte gpioIndex, byte state) {
-            lock (spLcd) {
+            lock (this) {
                 byte[] output = new byte[2];
                 output[0] = gpioIndex;
                 output[1] = state;
 
-                send(new Packet() {
+                disp.Transaction(new Packet() {
                     Type = 0x22,
                     Data = output
                 });
@@ -881,12 +812,10 @@ namespace Crypton.Hardware.CrystalFontz {
             if (exit) {
                 throw new ObjectDisposedException("The API has already been disposed");
             }
-            lock (this) {
-                exit = true;
-                receivingAsync.Join();
-                if (spLcd != null)
-                    spLcd.Dispose();
-            }
+            receivingAsync.Abort();
+            disp.Stop();
+            spLcd.Dispose();
+            exit = true;
         }
 
         ~CrystalFontz635() {

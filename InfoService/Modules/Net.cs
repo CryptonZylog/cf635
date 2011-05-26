@@ -27,23 +27,22 @@ namespace InfoService.Modules {
             LcdModule.SetLED(0, 0, 0);
         }
 
-        public override void Draw(Stopwatch elapsed) {
-            if (elapsed.ElapsedMilliseconds >= 100) {
+        public override bool Draw(TimeSpan elapsed) {
 
-                float count = pfc.NextValue();
+            float count = pfc.NextValue();
+            if (elapsed.TotalMilliseconds >= 100) {
                 double rawCount = Math.Floor((double)count);
                 LcdModule.SendString(2, 8, (rawCount.ToString() + "dg/s").PadRight(10));
                 if (rawCount > 0) {
                     flash(25);
                 }
-                elapsed.Reset();
-                elapsed.Start();
+
+                return true;
             }
+
+            return false;
         }
 
-        public override void Switch(TimeSpan elapsed) {
-            pfc.Dispose();
-            time.Stop();
-        }
+
     }
 }

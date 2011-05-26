@@ -40,8 +40,10 @@
     <Reference Include="System.Windows.Forms" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="CircularBuffer.cs" />
     <Compile Include="CommunicationException.cs" />
     <Compile Include="CrystalFontz635.cs" />
+    <Compile Include="Dispatcher.cs" />
     <Compile Include="PacketBuilder.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>

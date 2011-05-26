@@ -16,18 +16,10 @@ namespace InfoService {
             this.LcdModule = cf;
             this.LcdModule.ClearScreen();
         }
-        public virtual void Initialize() {
-        }
-        public virtual void Ready(TimeSpan elapsed) {
-        }
-        public virtual void Sample(TimeSpan elapsed) {
-        }
-        public virtual void Draw(Stopwatch elapsed) {
+        public virtual bool Draw(TimeSpan elapsed) {
             LcdModule.SetCursorPosition(0, 0);
+            return true;
         }
-        public virtual void Switch(TimeSpan elapsed) {
-        }
-
         public virtual void Dispose() {
         }
     }

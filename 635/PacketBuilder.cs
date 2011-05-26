@@ -11,12 +11,21 @@ namespace Crypton.Hardware.CrystalFontz {
         public byte Type;
         public byte[] Data;
         public bool IsValid;
+
+        public static readonly Packet Invalid = new Packet() {
+            IsValid = false
+        };
     }
 
     class PacketBuilder {
 
         const byte MAX_CMD = 35;
         const byte MAX_LENGTH = 22;
+
+        // PC -> dev
+        private static List<Packet> Outbox = new List<Packet>();
+        // Dev -> PC
+        private static List<Packet> Inbox = new List<Packet>();
 
         public static bool SendPacket(SerialPort port, Packet packet) {
             if (port == null) {

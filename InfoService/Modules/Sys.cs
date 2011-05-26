@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Diagnostics;
 using Crypton.Hardware.CrystalFontz;
+using System.Threading;
 
 namespace InfoService.Modules {
     class Sys : Module {
@@ -37,13 +38,12 @@ namespace InfoService.Modules {
 
         TimeSpan old = TimeSpan.MinValue;
 
-        public override void Draw(Stopwatch elapsed) {
-            if (elapsed.ElapsedMilliseconds >= 100) {
+        public override bool Draw(TimeSpan elapsed) {
+            if (elapsed.TotalMilliseconds >= 300) {
                 TimeSpan tsUptime = TimeSpan.FromSeconds(pfcUptime.NextValue());
                 int processCount = (int)pfcProcesses.NextValue();
                 int threadCount = (int)pfcThreads.NextValue();
                 float percent = pfCPU.NextValue();
-
                 LcdModule.SendString(1, 0, string.Format("UP: {0}d {1}h {2}m {3}s", tsUptime.Days, tsUptime.Hours, tsUptime.Minutes, tsUptime.Seconds).PadRight(20));
                 // LD:100% 
                 // P:1000
@@ -78,15 +78,13 @@ namespace InfoService.Modules {
                 bars += Convert.ToChar(1);
                 bars = bars.PadRight(20);
                 LcdModule.SendString(3, 0, bars);
-                elapsed.Reset();
-                elapsed.Start();
+
+                Thread.Sleep(100);
+                return true;
             }
+
+            return false;
         }
 
-        public override void Switch(TimeSpan elapsed) {
-            pfcThreads.Dispose();
-            pfcProcesses.Dispose();
-            pfcUptime.Dispose();
-        }
     }
 }

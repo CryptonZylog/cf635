@@ -23,8 +23,13 @@
         /// the contents of this method with the code editor.
         /// </summary>
         private void InitializeComponent() {
-            components = new System.ComponentModel.Container();
-            this.ServiceName = "Service1";
+            // 
+            // InfoService
+            // 
+            this.CanHandlePowerEvent = true;
+            this.CanShutdown = true;
+            this.ServiceName = "infoservice";
+
         }
 
         #endregion

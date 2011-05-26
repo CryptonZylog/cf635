@@ -37,12 +37,10 @@ namespace InfoService.Modules {
             LcdModule.SetLED(0, 0, 0);
         }
 
-        public override void Draw(Stopwatch elapsed) {
-            if (elapsed.ElapsedMilliseconds >= 100) {
-
-                float loadPercent = pfc.NextValue();
-                float rawPercent = loadPercent * 100f;
-
+        public override bool Draw(TimeSpan elapsed) {
+            float loadPercent = pfc.NextValue();
+            float rawPercent = loadPercent * 100f;
+            if (elapsed.TotalMilliseconds >= 100) {
                 if (rawPercent > 0) {
                     flash(20);
                 }
@@ -54,9 +52,9 @@ namespace InfoService.Modules {
                 bars = bars.PadRight(barCount, Convert.ToChar(0));
                 bars = bars.PadRight(20);
                 LcdModule.SendString(3, 0, bars);
-                elapsed.Reset();
-                elapsed.Start();
+                return true;
             }
+            return false;
         }
     }
 }

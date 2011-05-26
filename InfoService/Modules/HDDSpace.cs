@@ -85,30 +85,27 @@ namespace InfoService.Modules {
                     break;
             }
         }
-        public override void Ready(TimeSpan elapsed) {
-            base.Ready(elapsed);
-        }
-        public override void Sample(TimeSpan elapsed) {
-
-            base.Sample(elapsed);
-        }
-        public override void Draw(System.Diagnostics.Stopwatch elapsed) {
+        public override bool Draw(TimeSpan elapsed) {
             base.Draw(elapsed);
             if (drives == null || drives.Length == 0) {
                 LcdModule.SendString(0, 0, "NO DRIVES!");
-                return;
+                return false;
+            }
+            if (elapsed.TotalMilliseconds >= 1000) {
+                CachedDriveInfo drive = drives[index];
+                LcdModule.SetLED(0, drive.IsReady ? 100 : 0, drive.IsReady ? 0 : 100);
+                string line1 = string.Format("{0} {1}".PadRight(20), drive.Name, drive.DriveType.ToString().ToUpper());
+                LcdModule.SendString(0, 0, line1);
+                double szTotalMb = drive.TotalSize / 1024 / 1024.0;
+                double szFreeMb = drive.TotalFreeSpace / 1024 / 1024.0;
+                string szTotal = Math.Round(szTotalMb > 1024.0 ? szTotalMb / 1024.0 : szTotalMb) + (szTotalMb > 1024.0 ? "G" : "M");
+                string szFree = Math.Round(szFreeMb > 1024.0 ? szFreeMb / 1024.0 : szFreeMb) + (szFreeMb > 1024.0 ? "G" : "M");
+                string line2 = string.Format("SIZE:{0} FREE:{1}", szTotal, szFree).PadRight(20);
+                LcdModule.SendString(1, 0, line2);
+                return true;
             }
 
-            CachedDriveInfo drive = drives[index];
-            LcdModule.SetLED(0, drive.IsReady ? 100 : 0, drive.IsReady ? 0 : 100);
-            string line1 = string.Format("{0} {1}".PadRight(20), drive.Name, drive.DriveType.ToString().ToUpper());
-            LcdModule.SendString(0, 0, line1);
-            double szTotalMb = drive.TotalSize / 1024 / 1024.0;
-            double szFreeMb = drive.TotalFreeSpace / 1024 / 1024.0;
-            string szTotal = Math.Round(szTotalMb > 1024.0 ? szTotalMb / 1024.0 : szTotalMb) + (szTotalMb > 1024.0 ? "G" : "M");
-            string szFree = Math.Round(szFreeMb > 1024.0 ? szFreeMb / 1024.0 : szFreeMb) + (szFreeMb > 1024.0 ? "G" : "M");
-            string line2 = string.Format("SIZE:{0} FREE:{1}", szTotal, szFree).PadRight(20);
-            LcdModule.SendString(1, 0, line2);
+            return false;
         }
 
         public override void Dispose() {
