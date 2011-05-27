@@ -54,11 +54,13 @@
       <DependentUpon>InfoService.cs</DependentUpon>
     </Compile>
     <Compile Include="Module.cs" />
+    <Compile Include="Modules\Battery.cs" />
     <Compile Include="Modules\HDD.cs" />
     <Compile Include="Modules\HDDSpace.cs" />
     <Compile Include="Modules\Net.cs" />
     <Compile Include="Modules\RAM.cs" />
     <Compile Include="Modules\Sys.cs" />
+    <Compile Include="Modules\Weather.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="ProjectInstaller.cs">
       <SubType>Component</SubType>
@@ -82,7 +84,9 @@
       <Name>635</Name>
     </ProjectReference>
   </ItemGroup>
-  <ItemGroup />
+  <ItemGroup>
+    <Content Include="XMLFile1.xml" />
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.

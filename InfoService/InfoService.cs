@@ -28,11 +28,13 @@ namespace InfoService {
         public void Start() {
             StartDevice();
 
+            modules.Add(typeof(Weather));
             modules.Add(typeof(Sys));
             modules.Add(typeof(RAM));
+            modules.Add(typeof(Battery));
             //modules.Add(typeof(HDD));
             //modules.Add(typeof(HDDSpace));
-            modules.Add(typeof(Net));
+            //modules.Add(typeof(Net));
 
             InitializeAppManager();
         }
@@ -126,8 +128,8 @@ namespace InfoService {
                     for (int i = 0; i < modules.Count && !exit; i++) {
                         //TerminateAllCommThreads();
                         VerifyDevice();
-                        cf635.ClearScreen();
-                        cf635.SendString(0, 0, "loading...");
+                        cf635.Reset();
+                        cf635.SetCursorStyle(CursorStyles.None);
                         try {
                             currentModule = (Module)Activator.CreateInstance(modules[i], cf635);
                         }
@@ -150,6 +152,10 @@ namespace InfoService {
                                 }
                                 catch (ThreadAbortException) {
                                     //  thAppMgrReset.Set();
+                                }
+                                catch (Exception ex) {
+                                    Console.WriteLine(ex.ToString());
+                                    thAppMgrReset.Set();
                                 }
                             }));
                             thCurrentApp.Priority = ThreadPriority.BelowNormal;
