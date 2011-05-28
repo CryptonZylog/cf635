@@ -679,10 +679,10 @@ namespace Crypton.Hardware.CrystalFontz {
                 ms.WriteByte((byte)value);
                 output = ms.ToArray();
             }
-            disp.Transaction(new Packet() {
+            disp.SchedulePacket(new Packet() {
                 Type = 0x1f,
                 Data = output
-            }, 0x5f);
+            });
         }
         public enum SupportedBaudRates : int {
             Rate19200 = 19200,

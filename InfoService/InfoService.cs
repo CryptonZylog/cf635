@@ -147,7 +147,7 @@ namespace InfoService {
                                             sw.Reset();
                                             sw.Start();
                                         }
-                                        Thread.Sleep(1);
+                                        Thread.Sleep(2);
                                     }
                                 }
                                 catch (ThreadAbortException) {
@@ -158,7 +158,7 @@ namespace InfoService {
                                     thAppMgrReset.Set();
                                 }
                             }));
-                            thCurrentApp.Priority = ThreadPriority.BelowNormal;
+                            thCurrentApp.Priority = ThreadPriority.Lowest;
                             thCurrentApp.CurrentCulture = CultureInfo.InvariantCulture;
                             thCurrentApp.CurrentUICulture = CultureInfo.InvariantCulture;
                             thCurrentApp.Name = "App Thread";

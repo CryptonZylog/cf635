@@ -64,7 +64,19 @@ namespace InfoService.Modules {
                     LcdModule.SendString(2, 0, (chargeRemaining.ToString() + "% REMAINING").PadRight(20, ' '));
                     LcdModule.SendString(3, 0, (runtime.ToString() + " MIN REMAIN").PadRight(20, ' '));
 
-                    LcdModule.SetLED(2, 100, chargeRemaining);
+                    switch ((BatteryStatus)status) {
+                        case BatteryStatus.AC:
+                            LcdModule.SetLED(1, 100, 0);
+                            break;
+                        case BatteryStatus.Discharge:
+                            LcdModule.SetLED(1, 0, 100);
+                            break;
+                        default:
+                            LcdModule.SetLED(1, 0, 0);
+                            break;
+                    }
+
+                    LcdModule.SetLED(2,chargeRemaining, 100 - chargeRemaining);
                     if (runtime < 10) {
                         LcdModule.SetLED(3, 0, 100);
                     }

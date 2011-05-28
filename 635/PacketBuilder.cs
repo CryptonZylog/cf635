@@ -7,7 +7,7 @@ using System.IO;
 
 namespace Crypton.Hardware.CrystalFontz {
 
-    struct Packet {
+    class Packet {
         public byte Type;
         public byte[] Data;
         public bool IsValid;

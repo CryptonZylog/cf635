@@ -47,7 +47,7 @@ namespace Crypton.Hardware.CrystalFontz {
             catch (ThreadAbortException) {
             }
         }
-        
+
         private void InboxQueue() {
             try {
                 while (true) {
@@ -57,7 +57,7 @@ namespace Crypton.Hardware.CrystalFontz {
                             packet = PacketBuilder.ReceivePacket(cf635.spLcd);
                         }
                     }
-                    if (packet.IsValid) {
+                    if (packet != null) {
                         lock (this.inbox) {
                             this.inbox.Push(packet);
                         }
@@ -77,7 +77,7 @@ namespace Crypton.Hardware.CrystalFontz {
             thOutboxQueue.Set();
         }
 
-        public bool WaitForReturn(byte expectingType, out Packet response) {            
+        public bool WaitForReturn(byte expectingType, out Packet response) {
             bool success = false;
             response = new Packet();
             while (true) {
@@ -86,11 +86,10 @@ namespace Crypton.Hardware.CrystalFontz {
                 lock (this.inbox) {
                     for (int i = 0; i < this.inbox.Size; i++) {
                         var packet = this.inbox.Current;
-                        if (packet.IsValid && packet.Type == expectingType) {
+                        if (packet != null && packet.Type == expectingType) {
                             response = packet;
                             success = true;
-                            packet.IsValid = false;
-                            this.inbox.Current = packet;
+                            this.inbox.Current = null;
                             break;
                         }
                         this.inbox.Position++;
@@ -98,14 +97,14 @@ namespace Crypton.Hardware.CrystalFontz {
                 }
                 if (response.IsValid)
                     break;
-            }            
+            }
             return success;
         }
 
         public Packet Transaction(Packet outgoing, byte expectingType) {
             SchedulePacket(outgoing);
             Packet ret;
-            bool success =  WaitForReturn(expectingType, out ret);
+            bool success = WaitForReturn(expectingType, out ret);
             return ret;
         }
 
