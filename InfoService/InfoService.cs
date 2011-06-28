@@ -20,7 +20,7 @@ namespace InfoService {
         CrystalFontz635 cf635 = null;
         Thread thAppManager = null;
         Thread thCurrentApp = null;
-        AutoResetEvent thAppMgrReset = new AutoResetEvent(false);
+        static AutoResetEvent thAppMgrReset = new AutoResetEvent(false);
         bool exit = false;
         List<Type> modules = new List<Type>();
         Module currentModule = null;
@@ -28,8 +28,9 @@ namespace InfoService {
         public void Start() {
             StartDevice();
 
-            modules.Add(typeof(Weather));
+            //modules.Add(typeof(Modules.Timer));
             modules.Add(typeof(Sys));
+            modules.Add(typeof(Weather));
             modules.Add(typeof(RAM));
             modules.Add(typeof(Battery));
             //modules.Add(typeof(HDD));
@@ -132,6 +133,7 @@ namespace InfoService {
                         cf635.SetCursorStyle(CursorStyles.None);
                         try {
                             currentModule = (Module)Activator.CreateInstance(modules[i], cf635);
+                            currentModule.Init();
                         }
                         catch {
                             continue;
@@ -174,6 +176,10 @@ namespace InfoService {
             catch (ThreadAbortException) {
                 // thread quit
             }
+        }
+
+        public static void Reset() {
+            thAppMgrReset.Set();
         }
 
         private void ResetEvents() {

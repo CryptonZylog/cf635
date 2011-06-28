@@ -198,6 +198,7 @@ namespace InfoService.Modules {
 
         private void LoadWeather() {
             LcdModule.SetLED(0, 100, 100);
+            LcdModule.SendString(0, 0, "Loading weather...");
             XmlDocument xdoc = new XmlDocument();
             xdoc.LoadXml(new WebClient().DownloadString("http://weather.yahooapis.com/forecastrss?w=12769489&u=c"));
             XmlNamespaceManager nsmgr = new XmlNamespaceManager(xdoc.NameTable);
@@ -215,7 +216,7 @@ namespace InfoService.Modules {
             xtoday = xforecast[0];
             xtomorrow = xforecast[1];
 
-            LcdModule.SetLED(0, 100, 0);
+            LcdModule.SetLED(0, 0, 0);
         }
     }
 }

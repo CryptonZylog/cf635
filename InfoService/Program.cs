@@ -4,6 +4,7 @@ using System.Linq;
 using System.ServiceProcess;
 using System.Text;
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 
 namespace InfoService {
     static class Program {

@@ -55,6 +55,7 @@
       <DependentUpon>InfoService.cs</DependentUpon>
     </Compile>
     <Compile Include="Module.cs" />
+    <Compile Include="Modules\Timer.cs" />
     <Compile Include="Modules\Battery.cs" />
     <Compile Include="Modules\HDD.cs" />
     <Compile Include="Modules\HDDSpace.cs" />

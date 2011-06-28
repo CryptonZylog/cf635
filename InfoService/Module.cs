@@ -16,6 +16,9 @@ namespace InfoService {
             this.LcdModule = cf;
             this.LcdModule.ClearScreen();
         }
+        public virtual bool Init() {
+            return true;
+        }
         public virtual bool Draw(TimeSpan elapsed) {
             LcdModule.SetCursorPosition(0, 0);
             return true;
