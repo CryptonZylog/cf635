@@ -15,6 +15,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		Performance2.psess = Performance2.psess
 	EndProjectSection
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Crypton.CrystalFontz.Cf635", "Crypton.CrystalFontz.635\Crypton.CrystalFontz.Cf635.csproj", "{49E97204-1447-47E3-B0BD-6F69CA5003F1}"
+EndProject
 Global
 	GlobalSection(SubversionScc) = preSolution
 		Svn-Managed = True
@@ -70,6 +72,16 @@ Global
 		{361E3C07-1385-4DB7-83DA-F86F7C752686}.Release|Mixed Platforms.Build.0 = Release|x86
 		{361E3C07-1385-4DB7-83DA-F86F7C752686}.Release|x86.ActiveCfg = Release|x86
 		{361E3C07-1385-4DB7-83DA-F86F7C752686}.Release|x86.Build.0 = Release|x86
+		{49E97204-1447-47E3-B0BD-6F69CA5003F1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{49E97204-1447-47E3-B0BD-6F69CA5003F1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{49E97204-1447-47E3-B0BD-6F69CA5003F1}.Debug|Mixed Platforms.ActiveCfg = Debug|Any CPU
+		{49E97204-1447-47E3-B0BD-6F69CA5003F1}.Debug|Mixed Platforms.Build.0 = Debug|Any CPU
+		{49E97204-1447-47E3-B0BD-6F69CA5003F1}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{49E97204-1447-47E3-B0BD-6F69CA5003F1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{49E97204-1447-47E3-B0BD-6F69CA5003F1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{49E97204-1447-47E3-B0BD-6F69CA5003F1}.Release|Mixed Platforms.ActiveCfg = Release|Any CPU
+		{49E97204-1447-47E3-B0BD-6F69CA5003F1}.Release|Mixed Platforms.Build.0 = Release|Any CPU
+		{49E97204-1447-47E3-B0BD-6F69CA5003F1}.Release|x86.ActiveCfg = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

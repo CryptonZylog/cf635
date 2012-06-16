@@ -39,7 +39,7 @@ namespace InfoService {
 
             InitializeAppManager();
         }
-
+        
 
         protected void TerminateAllCommThreads() {
             lock (this) {
